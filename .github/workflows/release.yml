@@ -9,35 +9,39 @@ permissions:
   contents: write
 
 jobs:
-  build-macos-arm:
+  build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin
-      - name: Build
-        run: cargo build --release --target aarch64-apple-darwin
-      - name: Upload artifact
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+      - name: Build for ARM64
+        run: cargo tauri build --target aarch64-apple-darwin
+      - name: Build for x86_64
+        run: cargo tauri build --target x86_64-apple-darwin
+      - name: Ad-hoc codesign apps
+        run: |
+          codesign --force --deep --sign - "target/aarch64-apple-darwin/release/bundle/macos/QQPlayer.app"
+          codesign --force --deep --sign - "target/x86_64-apple-darwin/release/bundle/macos/QQPlayer.app"
+      - name: Create zip archives
+        run: |
+          cd target/aarch64-apple-darwin/release/bundle/macos
+          zip -r QQPlayer-macos-arm64.zip QQPlayer.app
+          cd /Users/runner/work/player/player
+          cd target/x86_64-apple-darwin/release/bundle/macos
+          zip -r QQPlayer-macos-x86_64.zip QQPlayer.app
+      - name: Upload artifacts
         uses: actions/upload-artifact@v5
         with:
-          name: qqplayer-macos-arm64
-          path: target/aarch64-apple-darwin/release/qqplayer
-
-  build-macos-x86:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-apple-darwin
-      - name: Build
-        run: cargo build --release --target x86_64-apple-darwin
-      - name: Upload artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: qqplayer-macos-x86_64
-          path: target/x86_64-apple-darwin/release/qqplayer
+          name: macos-builds
+          path: |
+            target/aarch64-apple-darwin/release/bundle/macos/QQPlayer-macos-arm64.zip
+            target/x86_64-apple-darwin/release/bundle/macos/QQPlayer-macos-x86_64.zip
+            target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
 
   build-windows:
     runs-on: windows-latest
@@ -55,7 +59,7 @@ jobs:
           path: target/release/bundle/nsis/*.exe
 
   release:
-    needs: [build-macos-arm, build-macos-x86, build-windows]
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -63,12 +67,10 @@ jobs:
         with:
           path: artifacts
           merge-multiple: false
-      - name: Flatten and rename artifacts for release
+      - name: Flatten artifacts for release
         run: |
           mkdir -p release
-          cp artifacts/qqplayer-macos-arm64/qqplayer release/qqplayer-macos-arm64
-          cp artifacts/qqplayer-macos-x86_64/qqplayer release/qqplayer-macos-x86_64
-          find artifacts/qqplayer-windows-x86_64 -name "*.exe" -exec cp {} release/ \;
+          find artifacts -type f \( -name "*.zip" -o -name "*.dmg" -o -name "*.exe" \) -exec cp {} release/ \;
           ls -la release/
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

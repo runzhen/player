@@ -190,6 +190,34 @@ The application uses a **multi-threaded architecture** to prevent UI blocking:
 - MP3 is universally supported
 - Easy to extend to other formats via `rodio`'s `Decoder`
 
+## Installation
+
+### Download
+
+Download the latest release from the [Releases page](../../releases):
+
+| Platform | File |
+|----------|------|
+| macOS Apple Silicon (M1/M2/M3/M4) | `QQPlayer-macos-arm64.zip` |
+| macOS Intel | `QQPlayer-macos-x86_64.zip` |
+| Windows | `QQPlayer_x.x.x_x64-setup.exe` |
+
+### macOS — First Launch
+
+Since the app is not signed with an Apple Developer certificate, macOS will block it on first launch. To open it:
+
+1. Unzip the downloaded `.zip` file
+2. Drag `QQPlayer.app` to `/Applications`
+3. **Right-click** (or Control-click) on `QQPlayer.app` and select **"Open"**
+4. Click **"Open"** in the dialog that appears
+
+You only need to do this once. After that, the app opens normally.
+
+> **Alternative:** If you still see "damaged" errors, run this in Terminal:
+> ```bash
+> xattr -cr /Applications/QQPlayer.app
+> ```
+
 ## Building and Running
 
 ### Prerequisites
