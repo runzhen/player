@@ -1,0 +1,73 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos-arm:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+      - name: Build
+        run: cargo tauri build --target aarch64-apple-darwin
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qqplayer-macos-arm64
+          path: target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+
+  build-macos-x86:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+      - name: Build
+        run: cargo tauri build --target x86_64-apple-darwin
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qqplayer-macos-x86_64
+          path: target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+      - name: Build
+        run: cargo tauri build
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qqplayer-windows-x86_64
+          path: target/release/bundle/nsis/*.exe
+
+  release:
+    needs: [build-macos-arm, build-macos-x86, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
