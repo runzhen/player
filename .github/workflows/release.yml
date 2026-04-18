@@ -66,8 +66,14 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           path: artifacts
-      - name: Create Release
+          merge-multiple: false
+      - name: Flatten artifacts for release
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name "*.dmg" -o -name "*.exe" \) -exec cp {} release/ \;
+          ls -la release/
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*
+          files: release/*
           generate_release_notes: true
