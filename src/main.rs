@@ -190,15 +190,21 @@ fn cmd_toggle_lyrics_window(app: AppHandle) {
             })
             .unwrap_or((100.0, 100.0, 400.0));
 
-        let _ = tauri::WebviewWindowBuilder::new(&app, "lyrics", tauri::WebviewUrl::App("lyrics.html".into()))
+        let mut builder = tauri::WebviewWindowBuilder::new(&app, "lyrics", tauri::WebviewUrl::App("lyrics.html".into()))
             .title("Lyrics")
             .inner_size(400.0, 500.0)
             .position(pos_x + outer_w, pos_y)
-            .title_bar_style(tauri::TitleBarStyle::Overlay)
-            .hidden_title(true)
             .always_on_top(true)
-            .focused(false)
-            .build();
+            .focused(false);
+
+        #[cfg(target_os = "macos")]
+        {
+            builder = builder
+                .title_bar_style(tauri::TitleBarStyle::Overlay)
+                .hidden_title(true);
+        }
+
+        let _ = builder.build();
     }
 }
 
