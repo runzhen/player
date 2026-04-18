@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-cli/schema.json",
+  "productName": "QQPlayer",
+  "version": "0.1.0",
+  "identifier": "com.qqplay.qqplayer",
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "QQPlayer",
+        "width": 400,
+        "height": 500,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "backgroundColor": "#1a1a2e"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "build": {
+    "frontendDist": "./frontend"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "",
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "entitlements": null,
+      "infoPlist": "Info.plist"
+    }
+  }
+}

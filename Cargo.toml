@@ -1,0 +1,17 @@
+[package]
+name = "qqplayer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+rodio = "0.19"
+image = "0.25"
+walkdir = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rfd = "0.15"
+mp3-duration = "0.1"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
