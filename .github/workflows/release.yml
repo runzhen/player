@@ -40,8 +40,6 @@ jobs:
           path: |
             target/aarch64-apple-darwin/release/bundle/macos/QQPlayer-macos-arm64.zip
             target/x86_64-apple-darwin/release/bundle/macos/QQPlayer-macos-x86_64.zip
-            target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-            target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
 
   build-windows:
     runs-on: windows-latest
@@ -59,7 +57,7 @@ jobs:
           path: target/release/bundle/nsis/*.exe
 
   release:
-    needs: [build-macos, build-windows]
+    needs: [build-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -70,7 +68,7 @@ jobs:
       - name: Flatten artifacts for release
         run: |
           mkdir -p release
-          find artifacts -type f \( -name "*.zip" -o -name "*.dmg" -o -name "*.exe" \) -exec cp {} release/ \;
+          find artifacts -type f \( -name "*.zip" \) -exec cp {} release/ \;
           ls -la release/
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
