@@ -100,10 +100,23 @@ button, #playlist, .context-menu {
   padding: 8px 12px;
   font-size: 13px;
   border-bottom: 1px solid #1a1a2e;
+  display: flex;
+  align-items: center;
+  cursor: default;
+}
+
+.track-name {
+  flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: default;
+}
+
+.track-duration {
+  flex-shrink: 0;
+  margin-left: 8px;
+  font-size: 11px;
+  color: #888;
 }
 
 #playlist li.playing {

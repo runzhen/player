@@ -36,6 +36,7 @@ enum PlayerCommand {
 #[derive(Serialize, Clone, Default)]
 struct PlayerState {
     names: Vec<String>,
+    durations: Vec<f64>,
     current_index: Option<usize>,
     current_track: Option<String>,
     is_playing: bool,
@@ -145,9 +146,9 @@ fn cmd_start_drag(window: WebviewWindow) {
 
 #[tauri::command]
 fn cmd_minimize_to_tray(window: WebviewWindow) {
-    // Hide the window and show the tray
-    let _ = window.hide();
-    if let Some(tray) = window.app_handle().tray_by_id(TRAY_ID) {
+    let app = window.app_handle().clone();
+    hide_all_windows(&app);
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
         let _ = tray.set_visible(true);
     }
 }
@@ -160,6 +161,13 @@ fn cmd_quit() {
 #[tauri::command]
 fn cmd_get_state(shared: State<SharedState>) -> PlayerState {
     shared.0.lock().unwrap().clone()
+}
+
+#[tauri::command]
+fn cmd_focus_main(app: AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.set_focus();
+    }
 }
 
 #[tauri::command]
@@ -190,12 +198,14 @@ fn cmd_toggle_lyrics_window(app: AppHandle) {
             })
             .unwrap_or((100.0, 100.0, 400.0));
 
+        let main_win = app.get_webview_window("main").unwrap();
         let mut builder = tauri::WebviewWindowBuilder::new(&app, "lyrics", tauri::WebviewUrl::App("lyrics.html".into()))
             .title("Lyrics")
             .inner_size(400.0, 500.0)
             .position(pos_x + outer_w, pos_y)
-            .always_on_top(true)
-            .focused(false);
+            .focused(false)
+            .parent(&main_win)
+            .unwrap();
 
         #[cfg(target_os = "macos")]
         {
@@ -220,8 +230,8 @@ fn cmd_toggle_playlist_window(app: AppHandle) {
             }
         }
     } else {
-        // Position playlist window to the LEFT of the main window
-        let (pos_x, pos_y, _outer_w) = app
+        // Position playlist window BELOW the main window
+        let (pos_x, pos_y, outer_w, outer_h) = app
             .get_webview_window("main")
             .and_then(|w| {
                 let pos = w.outer_position().ok()?;
@@ -231,17 +241,19 @@ fn cmd_toggle_playlist_window(app: AppHandle) {
                     pos.x as f64 / scale,
                     pos.y as f64 / scale,
                     outer.width as f64 / scale,
+                    outer.height as f64 / scale,
                 ))
             })
-            .unwrap_or((100.0, 100.0, 400.0));
+            .unwrap_or((100.0, 100.0, 400.0, 220.0));
 
-        let playlist_width = 350.0;
+        let main_win = app.get_webview_window("main").unwrap();
         let mut builder = tauri::WebviewWindowBuilder::new(&app, "playlist", tauri::WebviewUrl::App("playlist.html".into()))
             .title("Playlist")
-            .inner_size(playlist_width, 500.0)
-            .position(pos_x - playlist_width, pos_y)
-            .always_on_top(true)
-            .focused(false);
+            .inner_size(outer_w, 400.0)
+            .position(pos_x, pos_y + outer_h)
+            .focused(false)
+            .parent(&main_win)
+            .unwrap();
 
         #[cfg(target_os = "macos")]
         {
@@ -251,6 +263,25 @@ fn cmd_toggle_playlist_window(app: AppHandle) {
         }
 
         let _ = builder.build();
+    }
+}
+
+fn hide_all_windows(app: &AppHandle) {
+    for label in &["main", "playlist", "lyrics"] {
+        if let Some(win) = app.get_webview_window(label) {
+            let _ = win.hide();
+        }
+    }
+}
+
+fn show_all_windows(app: &AppHandle) {
+    for label in &["main", "playlist", "lyrics"] {
+        if let Some(win) = app.get_webview_window(label) {
+            let _ = win.show();
+        }
+    }
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.set_focus();
     }
 }
 
@@ -315,6 +346,7 @@ fn rebuild_menu(app: &AppHandle, player: &AudioPlayer) {
 fn update_shared_state(shared: &Arc<Mutex<PlayerState>>, player: &AudioPlayer) {
     let mut state = shared.lock().unwrap();
     state.names = player.get_playlist_names();
+    state.durations = player.get_playlist_durations();
     state.current_index = player.get_current_index();
     state.current_track = player.get_current_track_name();
     state.is_playing = player.is_playing();
@@ -364,18 +396,19 @@ fn main() {
             cmd_minimize_to_tray,
             cmd_quit,
             cmd_get_state,
+            cmd_focus_main,
             cmd_toggle_lyrics_window,
             cmd_toggle_playlist_window,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() != "main" {
-                    // Let non-main windows (like lyrics) close normally
+                    api.prevent_close();
+                    let _ = window.hide();
                     return;
                 }
                 api.prevent_close();
                 let app = window.app_handle().clone();
-                let label = window.label().to_string();
                 std::thread::spawn(move || {
                     let choice = rfd::MessageDialog::new()
                         .set_title("Close QQPlayer")
@@ -385,21 +418,15 @@ fn main() {
                         .show();
                     match choice {
                         rfd::MessageDialogResult::Yes => {
-                            // Minimize to tray
-                            if let Some(win) = app.get_webview_window(&label) {
-                                let _ = win.hide();
-                            }
+                            hide_all_windows(&app);
                             if let Some(tray) = app.tray_by_id(TRAY_ID) {
                                 let _ = tray.set_visible(true);
                             }
                         }
                         rfd::MessageDialogResult::No => {
-                            // Quit
                             std::process::exit(0);
                         }
-                        _ => {
-                            // Cancel — do nothing
-                        }
+                        _ => {}
                     }
                 });
             }
@@ -421,11 +448,7 @@ fn main() {
                 .on_menu_event(move |_app, event| {
                     let cmd = match event.id.as_ref() {
                         "show_window" => {
-                            // Show the main window and hide tray
-                            if let Some(win) = app_handle_for_tray.get_webview_window("main") {
-                                let _ = win.show();
-                                let _ = win.set_focus();
-                            }
+                            show_all_windows(&app_handle_for_tray);
                             if let Some(tray) = app_handle_for_tray.tray_by_id(TRAY_ID) {
                                 let _ = tray.set_visible(false);
                             }
@@ -460,6 +483,9 @@ fn main() {
             if let Some(tray) = app.tray_by_id(TRAY_ID) {
                 let _ = tray.set_visible(false);
             }
+
+            // Open playlist window by default
+            cmd_toggle_playlist_window(app.handle().clone());
 
             let app_handle = app.handle().clone();
             let shared = shared_state.clone();

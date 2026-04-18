@@ -119,7 +119,17 @@ async function pollState() {
       playlist.innerHTML = "";
       state.names.forEach((name, i) => {
         const li = document.createElement("li");
-        li.textContent = name;
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "track-name";
+        nameSpan.textContent = name;
+        const durSpan = document.createElement("span");
+        durSpan.className = "track-duration";
+        const dur = state.durations[i] || 0;
+        const m = Math.floor(dur / 60);
+        const s = Math.floor(dur % 60);
+        durSpan.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+        li.appendChild(nameSpan);
+        li.appendChild(durSpan);
         li.dataset.index = i;
         li.addEventListener("click", (e) => {
           if (e.shiftKey && lastClickedIndex !== null) {

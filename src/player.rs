@@ -349,6 +349,17 @@ impl AudioPlayer {
             .collect()
     }
 
+    pub fn get_playlist_durations(&self) -> Vec<f64> {
+        self.tracks()
+            .iter()
+            .map(|p| {
+                mp3_duration::from_path(p)
+                    .map(|d| d.as_secs_f64())
+                    .unwrap_or(0.0)
+            })
+            .collect()
+    }
+
     pub fn get_current_index(&self) -> Option<usize> {
         self.current_index
     }
