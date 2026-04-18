@@ -16,15 +16,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --locked
       - name: Build
-        run: cargo tauri build --target aarch64-apple-darwin
+        run: cargo build --release --target aarch64-apple-darwin
       - name: Upload artifact
         uses: actions/upload-artifact@v5
         with:
           name: qqplayer-macos-arm64
-          path: target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          path: target/aarch64-apple-darwin/release/qqplayer
 
   build-macos-x86:
     runs-on: macos-latest
@@ -33,15 +31,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-apple-darwin
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --locked
       - name: Build
-        run: cargo tauri build --target x86_64-apple-darwin
+        run: cargo build --release --target x86_64-apple-darwin
       - name: Upload artifact
         uses: actions/upload-artifact@v5
         with:
           name: qqplayer-macos-x86_64
-          path: target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+          path: target/x86_64-apple-darwin/release/qqplayer
 
   build-windows:
     runs-on: windows-latest
@@ -67,10 +63,12 @@ jobs:
         with:
           path: artifacts
           merge-multiple: false
-      - name: Flatten artifacts for release
+      - name: Flatten and rename artifacts for release
         run: |
           mkdir -p release
-          find artifacts -type f \( -name "*.dmg" -o -name "*.exe" \) -exec cp {} release/ \;
+          cp artifacts/qqplayer-macos-arm64/qqplayer release/qqplayer-macos-arm64
+          cp artifacts/qqplayer-macos-x86_64/qqplayer release/qqplayer-macos-x86_64
+          find artifacts/qqplayer-windows-x86_64 -name "*.exe" -exec cp {} release/ \;
           ls -la release/
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
