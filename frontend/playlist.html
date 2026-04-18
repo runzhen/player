@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playlist</title>
+  <link rel="stylesheet" href="playlist.css">
+</head>
+<body>
+  <div id="app">
+    <div id="titlebar"></div>
+    <div id="import-bar">
+      <button id="btn-import-file">📁 Import File</button>
+      <button id="btn-import-folder">📂 Import Folder</button>
+    </div>
+    <div id="playlist-tabs"></div>
+    <div id="playlist-header">Playlist <button id="btn-mode" title="Cycle">🔁</button> <span id="playlist-count">0 tracks</span></div>
+    <ul id="playlist"></ul>
+  </div>
+  <div id="context-menu" class="context-menu hidden">
+    <div id="ctx-remove" class="context-menu-item">Remove from playlist</div>
+  </div>
+  <script src="playlist.js"></script>
+</body>
+</html>

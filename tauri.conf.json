@@ -9,7 +9,7 @@
       {
         "title": "QQPlayer",
         "width": 400,
-        "height": 500,
+        "height": 220,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "backgroundColor": "#1a1a2e"

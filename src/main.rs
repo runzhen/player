@@ -208,6 +208,52 @@ fn cmd_toggle_lyrics_window(app: AppHandle) {
     }
 }
 
+#[tauri::command]
+fn cmd_toggle_playlist_window(app: AppHandle) {
+    if let Some(win) = app.get_webview_window("playlist") {
+        if win.is_visible().unwrap_or(false) {
+            let _ = win.hide();
+        } else {
+            let _ = win.show();
+            if let Some(main_win) = app.get_webview_window("main") {
+                let _ = main_win.set_focus();
+            }
+        }
+    } else {
+        // Position playlist window to the LEFT of the main window
+        let (pos_x, pos_y, _outer_w) = app
+            .get_webview_window("main")
+            .and_then(|w| {
+                let pos = w.outer_position().ok()?;
+                let outer = w.outer_size().ok()?;
+                let scale = w.scale_factor().ok().unwrap_or(1.0);
+                Some((
+                    pos.x as f64 / scale,
+                    pos.y as f64 / scale,
+                    outer.width as f64 / scale,
+                ))
+            })
+            .unwrap_or((100.0, 100.0, 400.0));
+
+        let playlist_width = 350.0;
+        let mut builder = tauri::WebviewWindowBuilder::new(&app, "playlist", tauri::WebviewUrl::App("playlist.html".into()))
+            .title("Playlist")
+            .inner_size(playlist_width, 500.0)
+            .position(pos_x - playlist_width, pos_y)
+            .always_on_top(true)
+            .focused(false);
+
+        #[cfg(target_os = "macos")]
+        {
+            builder = builder
+                .title_bar_style(tauri::TitleBarStyle::Overlay)
+                .hidden_title(true);
+        }
+
+        let _ = builder.build();
+    }
+}
+
 // -- Tray menu helpers --
 
 fn build_menu(app: &AppHandle, player: &AudioPlayer) -> tauri::Result<Menu<tauri::Wry>> {
@@ -319,6 +365,7 @@ fn main() {
             cmd_quit,
             cmd_get_state,
             cmd_toggle_lyrics_window,
+            cmd_toggle_playlist_window,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
