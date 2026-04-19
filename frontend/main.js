@@ -44,7 +44,7 @@ function formatTime(secs) {
 const COLLAPSED_HEIGHT = 220;
 const EXPANDED_HEIGHT = 620;
 const playlistPanel = document.getElementById("playlist-panel");
-let playlistVisible = false;
+let playlistVisible = true;
 
 document.getElementById("btn-playlist").addEventListener("click", async () => {
   playlistVisible = !playlistVisible;
