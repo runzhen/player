@@ -159,6 +159,14 @@ fn cmd_quit() {
 }
 
 #[tauri::command]
+fn cmd_set_window_height(window: WebviewWindow, height: f64) {
+    let current = window.outer_size().unwrap_or_default();
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let width = current.width as f64 / scale;
+    let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
+}
+
+#[tauri::command]
 fn cmd_get_state(shared: State<SharedState>) -> PlayerState {
     shared.0.lock().unwrap().clone()
 }
@@ -218,56 +226,8 @@ fn cmd_toggle_lyrics_window(app: AppHandle) {
     }
 }
 
-#[tauri::command]
-fn cmd_toggle_playlist_window(app: AppHandle) {
-    if let Some(win) = app.get_webview_window("playlist") {
-        if win.is_visible().unwrap_or(false) {
-            let _ = win.hide();
-        } else {
-            let _ = win.show();
-            if let Some(main_win) = app.get_webview_window("main") {
-                let _ = main_win.set_focus();
-            }
-        }
-    } else {
-        // Position playlist window BELOW the main window
-        let (pos_x, pos_y, outer_w, outer_h) = app
-            .get_webview_window("main")
-            .and_then(|w| {
-                let pos = w.outer_position().ok()?;
-                let outer = w.outer_size().ok()?;
-                let scale = w.scale_factor().ok().unwrap_or(1.0);
-                Some((
-                    pos.x as f64 / scale,
-                    pos.y as f64 / scale,
-                    outer.width as f64 / scale,
-                    outer.height as f64 / scale,
-                ))
-            })
-            .unwrap_or((100.0, 100.0, 400.0, 220.0));
-
-        let main_win = app.get_webview_window("main").unwrap();
-        let mut builder = tauri::WebviewWindowBuilder::new(&app, "playlist", tauri::WebviewUrl::App("playlist.html".into()))
-            .title("Playlist")
-            .inner_size(outer_w, 400.0)
-            .position(pos_x, pos_y + outer_h)
-            .focused(false)
-            .parent(&main_win)
-            .unwrap();
-
-        #[cfg(target_os = "macos")]
-        {
-            builder = builder
-                .title_bar_style(tauri::TitleBarStyle::Overlay)
-                .hidden_title(true);
-        }
-
-        let _ = builder.build();
-    }
-}
-
 fn hide_all_windows(app: &AppHandle) {
-    for label in &["main", "playlist", "lyrics"] {
+    for label in &["main", "lyrics"] {
         if let Some(win) = app.get_webview_window(label) {
             let _ = win.hide();
         }
@@ -275,7 +235,7 @@ fn hide_all_windows(app: &AppHandle) {
 }
 
 fn show_all_windows(app: &AppHandle) {
-    for label in &["main", "playlist", "lyrics"] {
+    for label in &["main", "lyrics"] {
         if let Some(win) = app.get_webview_window(label) {
             let _ = win.show();
         }
@@ -395,10 +355,10 @@ fn main() {
             cmd_start_drag,
             cmd_minimize_to_tray,
             cmd_quit,
+            cmd_set_window_height,
             cmd_get_state,
             cmd_focus_main,
             cmd_toggle_lyrics_window,
-            cmd_toggle_playlist_window,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -483,9 +443,6 @@ fn main() {
             if let Some(tray) = app.tray_by_id(TRAY_ID) {
                 let _ = tray.set_visible(false);
             }
-
-            // Open playlist window by default
-            cmd_toggle_playlist_window(app.handle().clone());
 
             let app_handle = app.handle().clone();
             let shared = shared_state.clone();
