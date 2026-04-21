@@ -88,8 +88,6 @@ function updateSelection() {
 
 document.getElementById("btn-import-file").addEventListener("click", () => invoke("cmd_import_file"));
 document.getElementById("btn-import-folder").addEventListener("click", () => invoke("cmd_import_folder"));
-document.getElementById("btn-lyrics-dir").addEventListener("click", () => invoke("cmd_set_lyrics_dir"));
-document.getElementById("btn-lyrics-script").addEventListener("click", () => invoke("cmd_set_lyrics_script"));
 
 // Right-click context menu
 playlist.addEventListener("contextmenu", (e) => {
@@ -144,25 +142,6 @@ async function pollState() {
     timeTotal.textContent = formatTime(currentDuration);
 
     // -- Playlist UI --
-    // Update lyrics settings buttons
-    const btnLyricsDir = document.getElementById("btn-lyrics-dir");
-    const btnLyricsScript = document.getElementById("btn-lyrics-script");
-    if (state.lyrics_dir) {
-      btnLyricsDir.textContent = "📁 " + state.lyrics_dir.split("/").pop();
-      btnLyricsDir.title = state.lyrics_dir;
-      btnLyricsDir.classList.add("active");
-    } else {
-      btnLyricsDir.textContent = "📁 Lyrics Folder";
-      btnLyricsDir.classList.remove("active");
-    }
-    if (state.lyrics_script) {
-      btnLyricsScript.textContent = "🐍 " + state.lyrics_script.split("/").pop();
-      btnLyricsScript.title = state.lyrics_script;
-      btnLyricsScript.classList.add("active");
-    } else {
-      btnLyricsScript.textContent = "🐍 Lyrics Script";
-      btnLyricsScript.classList.remove("active");
-    }
     // Play mode button
     const mode = state.play_mode || "cycle";
     btnMode.textContent = modeIcons[mode] || "🔁";

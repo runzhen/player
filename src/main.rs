@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Mutex};
 use tauri::{
     image::Image,
-    menu::{Menu, MenuItem, PredefinedMenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     path::BaseDirectory,
     tray::TrayIconBuilder,
     AppHandle, Manager, State, WebviewWindow, WindowEvent,
@@ -158,6 +158,34 @@ fn cmd_set_lyrics_script(sender: State<CommandSender>) {
 }
 
 #[tauri::command]
+fn cmd_clear_lyrics_dir(sender: State<CommandSender>) {
+    let _ = sender.0.send(PlayerCommand::SetLyricsDir(None));
+}
+
+#[tauri::command]
+fn cmd_clear_lyrics_script(sender: State<CommandSender>) {
+    let _ = sender.0.send(PlayerCommand::SetLyricsScript(None));
+}
+
+#[tauri::command]
+fn cmd_open_settings(app: AppHandle) {
+    if let Some(win) = app.get_webview_window("settings") {
+        let _ = win.show();
+        let _ = win.set_focus();
+    } else {
+        let _ = tauri::WebviewWindowBuilder::new(
+            &app,
+            "settings",
+            tauri::WebviewUrl::App("settings.html".into()),
+        )
+        .title("Settings")
+        .inner_size(500.0, 320.0)
+        .resizable(false)
+        .build();
+    }
+}
+
+#[tauri::command]
 fn cmd_start_drag(window: WebviewWindow) {
     let _ = window.start_dragging();
 }
@@ -227,7 +255,7 @@ fn cmd_toggle_lyrics_window(app: AppHandle) {
         let main_win = app.get_webview_window("main").unwrap();
         let mut builder = tauri::WebviewWindowBuilder::new(&app, "lyrics", tauri::WebviewUrl::App("lyrics.html".into()))
             .title("Lyrics")
-            .inner_size(400.0, 500.0)
+            .inner_size(400.0, 620.0)
             .position(pos_x + outer_w, pos_y)
             .focused(false)
             .parent(&main_win)
@@ -245,7 +273,7 @@ fn cmd_toggle_lyrics_window(app: AppHandle) {
 }
 
 fn hide_all_windows(app: &AppHandle) {
-    for label in &["main", "lyrics"] {
+    for label in &["main", "lyrics", "settings"] {
         if let Some(win) = app.get_webview_window(label) {
             let _ = win.hide();
         }
@@ -253,7 +281,7 @@ fn hide_all_windows(app: &AppHandle) {
 }
 
 fn show_all_windows(app: &AppHandle) {
-    for label in &["main", "lyrics"] {
+    for label in &["main", "lyrics", "settings"] {
         if let Some(win) = app.get_webview_window(label) {
             let _ = win.show();
         }
@@ -374,6 +402,9 @@ fn main() {
             cmd_set_play_mode,
             cmd_set_lyrics_dir,
             cmd_set_lyrics_script,
+            cmd_clear_lyrics_dir,
+            cmd_clear_lyrics_script,
+            cmd_open_settings,
             cmd_start_drag,
             cmd_minimize_to_tray,
             cmd_quit,
@@ -465,6 +496,30 @@ fn main() {
             if let Some(tray) = app.tray_by_id(TRAY_ID) {
                 let _ = tray.set_visible(false);
             }
+
+            // Build native macOS app menu bar
+            let app_menu_handle = app.handle().clone();
+            let settings_item = MenuItem::with_id(app, "settings", "Settings...", true, Some("CmdOrCtrl+,"))?;
+            let quit_item = MenuItem::with_id(app, "app_quit", "Quit QQPlayer", true, Some("CmdOrCtrl+Q"))?;
+            let sep = PredefinedMenuItem::separator(app)?;
+            let app_submenu = Submenu::with_items(app, "QQPlayer", true, &[
+                &settings_item,
+                &sep,
+                &quit_item,
+            ])?;
+            let app_menu = Menu::with_items(app, &[&app_submenu])?;
+            app.set_menu(app_menu)?;
+            app.on_menu_event(move |_app, event| {
+                match event.id.as_ref() {
+                    "settings" => {
+                        cmd_open_settings(app_menu_handle.clone());
+                    }
+                    "app_quit" => {
+                        std::process::exit(0);
+                    }
+                    _ => {}
+                }
+            });
 
             let app_handle = app.handle().clone();
             let shared = shared_state.clone();

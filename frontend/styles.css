@@ -133,26 +133,6 @@ button, input, #progress-bar, #playlist, .context-menu {
 
 #import-bar button:hover { background: #0f3460; }
 
-#settings-bar {
-  display: flex;
-  gap: 8px;
-}
-
-#settings-bar button {
-  flex: 1;
-  padding: 6px;
-  font-size: 12px;
-  border: none;
-  border-radius: 6px;
-  background: #16213e;
-  color: #888;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-#settings-bar button:hover { background: #0f3460; color: #e0e0e0; }
-#settings-bar button.active { color: #e0e0e0; }
-
 /* Playlist tabs */
 #playlist-tabs {
   display: flex;
