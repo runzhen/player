@@ -3,7 +3,7 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use walkdir::WalkDir;
 
@@ -32,6 +32,10 @@ struct SavedPlaylist {
 struct SavedState {
     playlists: Vec<SavedPlaylist>,
     active_playlist: usize,
+    #[serde(default)]
+    lyrics_dir: Option<PathBuf>,
+    #[serde(default)]
+    lyrics_script: Option<PathBuf>,
 }
 
 pub struct Playlist {
@@ -61,6 +65,8 @@ pub struct AudioPlayer {
     is_playing: bool,
     save_path: Option<PathBuf>,
     current_lyrics: Vec<(f64, String)>,
+    lyrics_dir: Option<PathBuf>,
+    lyrics_script: Option<PathBuf>,
 }
 
 impl AudioPlayer {
@@ -81,6 +87,8 @@ impl AudioPlayer {
             is_playing: false,
             save_path: None,
             current_lyrics: Vec::new(),
+            lyrics_dir: None,
+            lyrics_script: None,
         }
     }
 
@@ -108,6 +116,8 @@ impl AudioPlayer {
                     self.playlists.push(Playlist::new("Default".into()));
                 }
                 self.active_playlist = saved.active_playlist.min(self.playlists.len() - 1);
+                self.lyrics_dir = saved.lyrics_dir;
+                self.lyrics_script = saved.lyrics_script;
             }
         }
     }
@@ -128,6 +138,8 @@ impl AudioPlayer {
                 })
                 .collect(),
             active_playlist: self.active_playlist,
+            lyrics_dir: self.lyrics_dir.clone(),
+            lyrics_script: self.lyrics_script.clone(),
         };
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
@@ -386,9 +398,12 @@ impl AudioPlayer {
         self.sink = sink;
 
         let path = self.tracks()[idx].clone();
-        // Load LRC file if it exists next to the audio file
-        let lrc_path = path.with_extension("lrc");
-        self.current_lyrics = lrc::parse_lrc(&lrc_path);
+        // Load lyrics: check lyrics dir, then beside file, then script
+        self.current_lyrics = lrc::find_lyrics(
+            &path,
+            self.lyrics_dir.as_deref(),
+            self.lyrics_script.as_deref(),
+        );
         // Compute duration
         self.current_duration = mp3_duration::from_path(&path).ok();
         if let Ok(file) = File::open(&path) {
@@ -403,6 +418,22 @@ impl AudioPlayer {
 
     pub fn get_current_lyrics(&self) -> &[(f64, String)] {
         &self.current_lyrics
+    }
+
+    pub fn get_lyrics_dir(&self) -> Option<&Path> {
+        self.lyrics_dir.as_deref()
+    }
+
+    pub fn set_lyrics_dir(&mut self, dir: Option<PathBuf>) {
+        self.lyrics_dir = dir;
+    }
+
+    pub fn get_lyrics_script(&self) -> Option<&Path> {
+        self.lyrics_script.as_deref()
+    }
+
+    pub fn set_lyrics_script(&mut self, script: Option<PathBuf>) {
+        self.lyrics_script = script;
     }
 
     pub fn get_current_lyric_index(&self) -> Option<usize> {

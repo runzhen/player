@@ -31,6 +31,8 @@ enum PlayerCommand {
     Seek(f64),
     PlayIndex(usize),
     SetPlayMode(PlayMode),
+    SetLyricsDir(Option<PathBuf>),
+    SetLyricsScript(Option<PathBuf>),
 }
 
 #[derive(Serialize, Clone, Default)]
@@ -49,6 +51,8 @@ struct PlayerState {
     lyrics: Vec<String>,
     lyric_times: Vec<f64>,
     current_lyric_index: Option<usize>,
+    lyrics_dir: String,
+    lyrics_script: String,
 }
 
 struct CommandSender(mpsc::Sender<PlayerCommand>);
@@ -137,6 +141,20 @@ fn cmd_set_play_mode(sender: State<CommandSender>, mode: String) {
         _ => PlayMode::Cycle,
     };
     let _ = sender.0.send(PlayerCommand::SetPlayMode(play_mode));
+}
+
+#[tauri::command]
+fn cmd_set_lyrics_dir(sender: State<CommandSender>) {
+    let folder = rfd::FileDialog::new().pick_folder();
+    let _ = sender.0.send(PlayerCommand::SetLyricsDir(folder));
+}
+
+#[tauri::command]
+fn cmd_set_lyrics_script(sender: State<CommandSender>) {
+    let file = rfd::FileDialog::new()
+        .add_filter("Python Scripts", &["py"])
+        .pick_file();
+    let _ = sender.0.send(PlayerCommand::SetLyricsScript(file));
 }
 
 #[tauri::command]
@@ -325,6 +343,8 @@ fn update_shared_state(shared: &Arc<Mutex<PlayerState>>, player: &AudioPlayer) {
     state.lyrics = lyrics_data.iter().map(|(_, text)| text.clone()).collect();
     state.lyric_times = lyrics_data.iter().map(|(time, _)| *time).collect();
     state.current_lyric_index = player.get_current_lyric_index();
+    state.lyrics_dir = player.get_lyrics_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+    state.lyrics_script = player.get_lyrics_script().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
 }
 
 fn main() {
@@ -352,6 +372,8 @@ fn main() {
             cmd_seek,
             cmd_play_index,
             cmd_set_play_mode,
+            cmd_set_lyrics_dir,
+            cmd_set_lyrics_script,
             cmd_start_drag,
             cmd_minimize_to_tray,
             cmd_quit,
@@ -503,6 +525,12 @@ fn main() {
                             }
                             PlayerCommand::SetPlayMode(mode) => {
                                 player.set_play_mode(mode);
+                            }
+                            PlayerCommand::SetLyricsDir(dir) => {
+                                player.set_lyrics_dir(dir);
+                            }
+                            PlayerCommand::SetLyricsScript(script) => {
+                                player.set_lyrics_script(script);
                             }
                         }
                         changed = true;
