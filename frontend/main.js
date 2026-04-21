@@ -183,7 +183,7 @@ async function pollState() {
         const li = document.createElement("li");
         const nameSpan = document.createElement("span");
         nameSpan.className = "track-name";
-        nameSpan.textContent = name;
+        nameSpan.textContent = (i + 1) + "." + name;
         const durSpan = document.createElement("span");
         durSpan.className = "track-duration";
         const dur = state.durations[i] || 0;
