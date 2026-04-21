@@ -4,6 +4,11 @@ A minimalist music player for macOS built with Rust and Tauri v2.
 
 ## Installation
 
+### Quick Install
+```bash
+curl -fsSL https://raw.githubusercontent.com/runzhen/player/main/install.sh | bash
+```
+
 ### Download
 
 Download the latest release from the [Releases page](../../releases):
