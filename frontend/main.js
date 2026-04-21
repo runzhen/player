@@ -231,5 +231,5 @@ async function pollState() {
   }
 }
 
-setInterval(pollState, 250);
+setInterval(pollState, 500);
 pollState();

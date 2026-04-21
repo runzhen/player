@@ -41,6 +41,7 @@ struct SavedState {
 pub struct Playlist {
     pub name: String,
     pub tracks: Vec<PathBuf>,
+    pub durations: Vec<f64>,
     pub play_mode: PlayMode,
 }
 
@@ -49,7 +50,27 @@ impl Playlist {
         Playlist {
             name,
             tracks: Vec::new(),
+            durations: Vec::new(),
             play_mode: PlayMode::Cycle,
+        }
+    }
+
+    fn compute_duration(path: &Path) -> f64 {
+        mp3_duration::from_path(path)
+            .map(|d| d.as_secs_f64())
+            .unwrap_or(0.0)
+    }
+
+    pub fn add_track(&mut self, path: PathBuf) {
+        let dur = Self::compute_duration(&path);
+        self.tracks.push(path);
+        self.durations.push(dur);
+    }
+
+    pub fn remove_track(&mut self, index: usize) {
+        if index < self.tracks.len() {
+            self.tracks.remove(index);
+            self.durations.remove(index);
         }
     }
 }
@@ -106,10 +127,14 @@ impl AudioPlayer {
                 self.playlists = saved
                     .playlists
                     .into_iter()
-                    .map(|sp| Playlist {
-                        name: sp.name,
-                        tracks: sp.tracks,
-                        play_mode: sp.play_mode,
+                    .map(|sp| {
+                        let durations = sp.tracks.iter().map(|p| Playlist::compute_duration(p)).collect();
+                        Playlist {
+                            name: sp.name,
+                            tracks: sp.tracks,
+                            durations,
+                            play_mode: sp.play_mode,
+                        }
                     })
                     .collect();
                 if self.playlists.is_empty() {
@@ -153,10 +178,6 @@ impl AudioPlayer {
         &self.playlists[self.active_playlist].tracks
     }
 
-    fn tracks_mut(&mut self) -> &mut Vec<PathBuf> {
-        &mut self.playlists[self.active_playlist].tracks
-    }
-
     pub fn create_playlist(&mut self, name: String) {
         self.playlists.push(Playlist::new(name));
     }
@@ -170,15 +191,13 @@ impl AudioPlayer {
     }
 
     pub fn remove_track(&mut self, index: usize) {
-        let tracks = self.tracks_mut();
-        if index >= tracks.len() {
+        if index >= self.tracks().len() {
             return;
         }
-        tracks.remove(index);
+        self.playlists[self.active_playlist].remove_track(index);
         // Adjust current_index
         match self.current_index {
             Some(ci) if ci == index => {
-                // Currently playing track was removed — stop
                 self.stop();
                 self.current_index = if self.tracks().is_empty() {
                     None
@@ -227,7 +246,7 @@ impl AudioPlayer {
             .map_or(false, |e| e.eq_ignore_ascii_case("mp3"))
             && !self.tracks().contains(&path)
         {
-            self.tracks_mut().push(path);
+            self.playlists[self.active_playlist].add_track(path);
         }
     }
 
@@ -240,7 +259,7 @@ impl AudioPlayer {
                     .map_or(false, |e| e.eq_ignore_ascii_case("mp3"))
                 && !self.tracks().contains(&path)
             {
-                self.tracks_mut().push(path);
+                self.playlists[self.active_playlist].add_track(path);
             }
         }
     }
@@ -362,14 +381,7 @@ impl AudioPlayer {
     }
 
     pub fn get_playlist_durations(&self) -> Vec<f64> {
-        self.tracks()
-            .iter()
-            .map(|p| {
-                mp3_duration::from_path(p)
-                    .map(|d| d.as_secs_f64())
-                    .unwrap_or(0.0)
-            })
-            .collect()
+        self.playlists[self.active_playlist].durations.clone()
     }
 
     pub fn get_current_index(&self) -> Option<usize> {

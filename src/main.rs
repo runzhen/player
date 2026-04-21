@@ -375,6 +375,33 @@ fn update_shared_state(shared: &Arc<Mutex<PlayerState>>, player: &AudioPlayer) {
     state.lyrics_script = player.get_lyrics_script().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
 }
 
+fn handle_player_command(player: &mut AudioPlayer, cmd: PlayerCommand) {
+    match cmd {
+        PlayerCommand::Play => {
+            if player.is_playing() {
+                player.pause();
+            } else {
+                player.play();
+            }
+        }
+        PlayerCommand::Pause => player.pause(),
+        PlayerCommand::Stop => player.stop(),
+        PlayerCommand::Next => player.next_track(),
+        PlayerCommand::Previous => player.previous_track(),
+        PlayerCommand::LoadFile(path) => player.load_file(path),
+        PlayerCommand::LoadFolder(path) => player.load_folder(path),
+        PlayerCommand::CreatePlaylist(name) => player.create_playlist(name),
+        PlayerCommand::SwitchPlaylist(index) => player.switch_playlist(index),
+        PlayerCommand::RemoveTrack(index) => player.remove_track(index),
+        PlayerCommand::RemoveTracks(indices) => player.remove_tracks(&indices),
+        PlayerCommand::Seek(position) => player.seek(position),
+        PlayerCommand::PlayIndex(index) => player.play_index(index),
+        PlayerCommand::SetPlayMode(mode) => player.set_play_mode(mode),
+        PlayerCommand::SetLyricsDir(dir) => player.set_lyrics_dir(dir),
+        PlayerCommand::SetLyricsScript(script) => player.set_lyrics_script(script),
+    }
+}
+
 fn main() {
     let (cmd_tx, cmd_rx) = mpsc::channel::<PlayerCommand>();
     let shared_state = Arc::new(Mutex::new(PlayerState::default()));
@@ -533,62 +560,19 @@ fn main() {
 
                 loop {
                     let mut changed = false;
-                    while let Ok(cmd) = cmd_rx.try_recv() {
-                        match cmd {
-                            PlayerCommand::Play => {
-                                if player.is_playing() {
-                                    player.pause();
-                                } else {
-                                    player.play();
-                                }
-                            }
-                            PlayerCommand::Pause => {
-                                player.pause();
-                            }
-                            PlayerCommand::Stop => {
-                                player.stop();
-                            }
-                            PlayerCommand::Next => {
-                                player.next_track();
-                            }
-                            PlayerCommand::Previous => {
-                                player.previous_track();
-                            }
-                            PlayerCommand::LoadFile(path) => {
-                                player.load_file(path);
-                            }
-                            PlayerCommand::LoadFolder(path) => {
-                                player.load_folder(path);
-                            }
-                            PlayerCommand::CreatePlaylist(name) => {
-                                player.create_playlist(name);
-                            }
-                            PlayerCommand::SwitchPlaylist(index) => {
-                                player.switch_playlist(index);
-                            }
-                            PlayerCommand::RemoveTrack(index) => {
-                                player.remove_track(index);
-                            }
-                            PlayerCommand::RemoveTracks(indices) => {
-                                player.remove_tracks(&indices);
-                            }
-                            PlayerCommand::Seek(position) => {
-                                player.seek(position);
-                            }
-                            PlayerCommand::PlayIndex(index) => {
-                                player.play_index(index);
-                            }
-                            PlayerCommand::SetPlayMode(mode) => {
-                                player.set_play_mode(mode);
-                            }
-                            PlayerCommand::SetLyricsDir(dir) => {
-                                player.set_lyrics_dir(dir);
-                            }
-                            PlayerCommand::SetLyricsScript(script) => {
-                                player.set_lyrics_script(script);
+
+                    // Block until a command arrives or timeout — avoids busy-waiting
+                    match cmd_rx.recv_timeout(std::time::Duration::from_millis(200)) {
+                        Ok(cmd) => {
+                            handle_player_command(&mut player, cmd);
+                            changed = true;
+                            // Drain any additional queued commands
+                            while let Ok(cmd) = cmd_rx.try_recv() {
+                                handle_player_command(&mut player, cmd);
                             }
                         }
-                        changed = true;
+                        Err(mpsc::RecvTimeoutError::Timeout) => {}
+                        Err(mpsc::RecvTimeoutError::Disconnected) => break,
                     }
 
                     if player.check_auto_advance() {
@@ -602,8 +586,6 @@ fn main() {
 
                     // Always update shared state so position stays current
                     update_shared_state(&shared, &player);
-
-                    std::thread::sleep(std::time::Duration::from_millis(100));
                 }
             });
 
